@@ -2,11 +2,18 @@
 // Contains mappings from notes to frequencies
 import hz_at_note from "./note_to_hz_mapping.js"
 
+
 const NOTES = `E4 E4 F4 G4 G4 F4 E4 D4`.split(" ")
 
+
+
 function playAudio(){
+
+
 	const audioCtx = new window.AudioContext();
-	audioCtx.sampleRate = 16000;
+	//audioCtx.sampleRate = 16000;
+
+
 
 
 	const frameCount = audioCtx.sampleRate * 10.0;
@@ -20,9 +27,13 @@ function playAudio(){
 
 	let channel_buffer = audioBuffer.getChannelData(0)
 
-   for (var i = 0; i < frameCount; i++) {
-		channel_buffer[i] = Math.random() * 2 - 1;
-   }
+  for (var i = 0; i < frameCount; i++) {
+		let hz = hz_at_note["C4"]
+		let seconds_passed = i / audioCtx.sampleRate
+		let out = Math.sin(seconds_passed * hz * 6.28)
+		channel_buffer[i] = out;
+			
+	}
 
 
 	// Get an AudioBufferSourceNode.
@@ -42,6 +53,8 @@ function playAudio(){
 console.log(hz_at_note["C4"])
 
 
+
+// Audio requires a user trigger to start
 let btn = document.createElement("button")
 document.body.appendChild(btn)
 btn.innerText = "Play"
