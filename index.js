@@ -3,9 +3,51 @@
 import hz_at_note from "./note_to_hz_mapping.js"
 
 
-// TODO: Come up with a better format that allows for variable note lengths
-const NOTES = `E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4 D4 D4`.split(" ")
+const NOTES = parseNotes(`
+4E4 4E4 4F4 4G4
+4G4 4F4 4E4 4D4
+4C4 4C4 4D4 4E4
+6E4 2D4 8D4
+`)
 
+// Convert note format into more easily used data
+function parseNotes(notes) {
+	let notes = notes.replaceAll("\n"," ")
+		.split(" ")
+		.filter(n=>n)
+		.map(n=>n.trim())
+	
+	let output = []
+	for(let i=0;i<notes.length;i++){
+		let duration = note[0].parseInt(16)
+		let semitone = note.charCodeAt(1) - "A".charCodeAt(0)
+		let octave = parseInt(note[note.length-1]) - 4
+		let hz = hz_at_note[note]
+
+		while(duration-->0) {
+			output.push({hz,end:duration===1})
+		}
+	}
+}
+
+// Only works with valid notes in the form [A-G][b|#]?\d
+function note_to_hz(note){
+
+	// Return precalculated note for now since it sounds better
+	return hz_at_note[note]
+
+	let semitone = note.charCodeAt(0) - "A".charCodeAt(0)
+	
+	let octave = parseInt(note[note.length-1]) - 4
+
+	if(note[1]==="b") semitone--
+	else if(note[1]==="b") semitone++
+
+	return 440 * Math.pow(2,octave + semitone/12)
+}
+function note_duration(note){
+	return note
+}
 
 // This needs to be triggered by a user action
 function playAudio(){
@@ -40,7 +82,8 @@ function playAudio(){
 		let note_index = Math.floor(NOTES.length * (i/frameCount))
 		let note = NOTES[note_index]
 		let note_progress = (NOTES.length * (i/frameCount)) % 1
-		let hz = hz_at_note[note]
+		let hz = note_to_hz(note)
+		
 
 		// Generate a waveform and volume
 		let waveform = sawtooth_waveform(time,hz)
