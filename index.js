@@ -3,10 +3,11 @@
 import hz_at_note from "./note_to_hz_mapping.js"
 
 
-const NOTES = `E4 E4 F4 G4 G4 F4 E4 D4`.split(" ")
+// TODO: Come up with a better format that allows for variable note lengths
+const NOTES = `E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4 D4 D4`.split(" ")
 
 
-
+// This needs to be triggered by a user action
 function playAudio(){
 
 
@@ -14,10 +15,11 @@ function playAudio(){
 	//audioCtx.sampleRate = 16000;
 
 
+	// Fixed length song at 4 seconds right now
+	// TODO: Set based on BPM and song length
+	const frameCount = audioCtx.sampleRate * 4.0;
 
-
-	const frameCount = audioCtx.sampleRate * 10.0;
-
+	// Create the buffer, only 1 channel (mono), with set length and sample rate
 	const channels = 1
 	const audioBuffer = audioCtx.createBuffer(
 		channels,
@@ -25,32 +27,59 @@ function playAudio(){
 		audioCtx.sampleRate
 	);
 
+	// Get a buffer for a channel. In this case there's only one channel
+	// But for sterio you would have to work with two of these, one for each side
 	let channel_buffer = audioBuffer.getChannelData(0)
 
+	// Loop through each frame and write some sound data to the buffer
   for (var i = 0; i < frameCount; i++) {
-		let hz = hz_at_note["C4"]
-		let seconds_passed = i / audioCtx.sampleRate
-		let out = Math.sin(seconds_passed * hz * 6.28)
-		channel_buffer[i] = out;
-			
+
+		let time = i / audioCtx.sampleRate
+
+		// Get the index of the current note and progress through playing it
+		let note_index = Math.floor(NOTES.length * (i/frameCount))
+		let note = NOTES[note_index]
+		let note_progress = (NOTES.length * (i/frameCount)) % 1
+		let hz = hz_at_note[note]
+
+		// Generate a waveform and volume
+		let waveform = sawtooth_waveform(time,hz)
+		let volume = adsr_profile(note_progress)
+
+		channel_buffer[i] = reduceBitDepth(volume * waveform)
 	}
 
 
-	// Get an AudioBufferSourceNode.
-  // This is the AudioNode to use when we want to play an AudioBuffer
-  var source = audioCtx.createBufferSource();
-  // set the buffer in the AudioBufferSourceNode
-  source.buffer = audioBuffer;
-  // connect the AudioBufferSourceNode to the
-  // destination so we can hear the sound
-  source.connect(audioCtx.destination);
-  // start the source playing
-  source.start();
 
+	// Pipe the sound to be played
+  var source = audioCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(audioCtx.destination);
+  source.start();
 
 }
 
-console.log(hz_at_note["C4"])
+// Waveform generators
+function sin_waveform(time,hz){
+	return Math.sin(time * hz * Math.PI*2)
+}
+function square_waveform(time,hz){
+	return (time * hz % 1) > 0.5 ? 1 : -1
+}
+function sawtooth_waveform(time,hz){
+	return (time * hz % 1) * 2 - 1
+}
+
+// Simple sound profile to remove poping, slowly fades each note in and out
+function adsr_profile(i){
+	return i<0.1 ? i*10 : (1-(i+.1))
+}
+
+// Reduces the depth of the sound to 8 bits.
+// I can't personally tell the difference, so it may not work.
+function reduceBitDepth(v){
+	return Math.round(v*128) / 128
+}
 
 
 
