@@ -1,7 +1,8 @@
 
-const NOTES = [
-	""
-]
+// Contains mappings from notes to frequencies
+import hz_at_note from "./note_to_hz_mapping.js"
+
+const NOTES = `E4 E4 F4 G4 G4 F4 E4 D4`.split(" ")
 
 function playAudio(){
 	const audioCtx = new window.AudioContext();
@@ -37,6 +38,8 @@ function playAudio(){
 
 
 }
+
+console.log(hz_at_note["C4"])
 
 
 let btn = document.createElement("button")
