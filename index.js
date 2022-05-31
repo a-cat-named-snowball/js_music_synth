@@ -3,7 +3,7 @@
 import hz_at_note from "./note_to_hz_mapping.js"
 
 
-const NOTES = parseNotes(`
+const song_joy = parseNotes(`
 4E4 4E4 4F4 4G4
 4G4 4F4 4E4 4D4
 4C4 4C4 4D4 4E4
@@ -12,54 +12,41 @@ const NOTES = parseNotes(`
 
 // Convert note format into more easily used data
 function parseNotes(notes) {
-	let notes = notes.replaceAll("\n"," ")
+	notes = notes.replaceAll("\n"," ")
 		.split(" ")
 		.filter(n=>n)
 		.map(n=>n.trim())
 	
 	let output = []
 	for(let i=0;i<notes.length;i++){
-		let duration = note[0].parseInt(16)
-		let semitone = note.charCodeAt(1) - "A".charCodeAt(0)
-		let octave = parseInt(note[note.length-1]) - 4
-		let hz = hz_at_note[note]
-
-		while(duration-->0) {
-			output.push({hz,end:duration===1})
+		let note = notes[i]
+		let duration = parseInt(note[0],16)
+		let hz = hz_at_note[note.slice(1)]
+		
+		// Alternatively, calculate frequency - but a better algorithm is needed.
+		// let semitone = note.charCodeAt(1) - "A".charCodeAt(0)
+		// let octave = parseInt(note[note.length-1]) - 4
+		// let hz = 440 * Math.pow(2,octave + (semitone-8)/12)
+		
+		let counter = duration
+		let offset = 0
+		while(--counter>0) {
+			output.push({hz,offset:offset++,duration})
 		}
 	}
+	return output
 }
 
-// Only works with valid notes in the form [A-G][b|#]?\d
-function note_to_hz(note){
-
-	// Return precalculated note for now since it sounds better
-	return hz_at_note[note]
-
-	let semitone = note.charCodeAt(0) - "A".charCodeAt(0)
-	
-	let octave = parseInt(note[note.length-1]) - 4
-
-	if(note[1]==="b") semitone--
-	else if(note[1]==="b") semitone++
-
-	return 440 * Math.pow(2,octave + semitone/12)
-}
-function note_duration(note){
-	return note
-}
 
 // This needs to be triggered by a user action
-function playAudio(){
-
+function playAudio(song,bpm){
+	console.log(song)
 
 	const audioCtx = new window.AudioContext();
-	//audioCtx.sampleRate = 16000;
 
-
-	// Fixed length song at 4 seconds right now
-	// TODO: Set based on BPM and song length
-	const frameCount = audioCtx.sampleRate * 4.0;
+	const resolution = 16 // Each note is 1/16th in length
+	const frameCount = audioCtx.sampleRate * song.length * (resolution / bpm);
+	const framesPerSixteenth = frameCount / song.length
 
 	// Create the buffer, only 1 channel (mono), with set length and sample rate
 	const channels = 1
@@ -74,19 +61,17 @@ function playAudio(){
 	let channel_buffer = audioBuffer.getChannelData(0)
 
 	// Loop through each frame and write some sound data to the buffer
-  for (var i = 0; i < frameCount; i++) {
-
-		let time = i / audioCtx.sampleRate
-
-		// Get the index of the current note and progress through playing it
-		let note_index = Math.floor(NOTES.length * (i/frameCount))
-		let note = NOTES[note_index]
-		let note_progress = (NOTES.length * (i/frameCount)) % 1
-		let hz = note_to_hz(note)
+  for (let i = 0; i < frameCount; i++) {
 		
-
+		// Get the index of the current note and progress through playing it
+		let note_index = Math.floor(i/framesPerSixteenth)
+		let note = song[note_index]
+		let note_progress = ((i/framesPerSixteenth)%1 + note.offset) / note.duration
+		
+		
 		// Generate a waveform and volume
-		let waveform = sawtooth_waveform(time,hz)
+		let time_elapsed = i / audioCtx.sampleRate
+		let waveform = sawtooth_waveform(time_elapsed,note.hz)
 		let volume = adsr_profile(note_progress)
 
 		channel_buffer[i] = reduceBitDepth(volume * waveform)
@@ -95,7 +80,7 @@ function playAudio(){
 
 
 	// Pipe the sound to be played
-  var source = audioCtx.createBufferSource();
+  const source = audioCtx.createBufferSource();
   source.buffer = audioBuffer;
   source.connect(audioCtx.destination);
   source.start();
@@ -113,9 +98,10 @@ function sawtooth_waveform(time,hz){
 	return (time * hz % 1) * 2 - 1
 }
 
-// Simple sound profile to remove poping, slowly fades each note in and out
+// Simple sound profile to reduce poping, slowly fades each note in and out
+// Inputs should be in the range from 0 to 1.
 function adsr_profile(i){
-	return i<0.1 ? i*10 : (1-(i+.1))
+	return i<0.125 ? i*8 : (1-(i+.125))
 }
 
 // Reduces the depth of the sound to 8 bits.
@@ -130,4 +116,4 @@ function reduceBitDepth(v){
 let btn = document.createElement("button")
 document.body.appendChild(btn)
 btn.innerText = "Play"
-btn.onclick = playAudio
+btn.onclick = ()=>playAudio(song_joy,88)
